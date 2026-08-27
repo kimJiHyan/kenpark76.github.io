@@ -1,0 +1,39 @@
+name: Sync koreatv.json
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-koreatv:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+
+      - name: Download and validate only koreatv.json
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 2 --max-time 30 \
+            https://raw.githubusercontent.com/kenpark76/kenpark76.github.io/main/koreatv.json \
+            --output koreatv.json.next
+          python -m json.tool koreatv.json.next >/dev/null
+          test -s koreatv.json.next
+          mv koreatv.json.next koreatv.json
+
+      - name: Commit only when koreatv.json changed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- koreatv.json; then
+            echo "koreatv.json is already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- koreatv.json
+          git commit -m "自动同步 koreatv.json"
+          git push
